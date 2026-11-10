@@ -3,8 +3,11 @@ import { loadPyodide } from "./runtime/pyodide.mjs";
 async function initialize() {
   const runtime = await loadPyodide();
   const files = ["planner.py", "export.py", "browser_api.py"];
+  const release = new URL(import.meta.url).searchParams.get("v");
   await Promise.all(files.map(async file => {
-    const response = await fetch(new URL(file, import.meta.url));
+    const url = new URL(file, import.meta.url);
+    if (release) url.searchParams.set("v", release);
+    const response = await fetch(url);
     if (!response.ok) throw new Error("Não foi possível carregar o simulador.");
     runtime.FS.writeFile(file, await response.text());
   }));

@@ -1,14 +1,21 @@
 "use strict";
 let plannerWorker;
+const release = new URL(document.currentScript.src).searchParams.get("v");
+
+function plannerAsset(path) {
+  const url = new URL(path, document.baseURI);
+  if (release) url.searchParams.set("v", release);
+  return url;
+}
 
 window.requestPlanner = async function (path, payload) {
   if (path === "/v1/demo") {
-    const response = await fetch(new URL("./demo.json", document.baseURI), {signal: AbortSignal.timeout(10000)});
+    const response = await fetch(plannerAsset("./demo.json"), {signal: AbortSignal.timeout(10000)});
     if (!response.ok) throw new Error("O exemplo está indisponível. Tente novamente.");
     return response;
   }
   return new Promise((resolve, reject) => {
-    plannerWorker ??= new Worker(new URL("./worker.mjs", document.baseURI), {type:"module"});
+    plannerWorker ??= new Worker(plannerAsset("./worker.mjs"), {type:"module"});
     const worker = plannerWorker;
     function reset(message) {
       clearTimeout(timer);
