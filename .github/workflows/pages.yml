@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -37,3 +38,4 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
+

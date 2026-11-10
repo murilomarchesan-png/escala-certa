@@ -2,7 +2,7 @@
 
 Simulador local de escalas para restaurantes de São Paulo. Carregue o Bistrô Alameda com 15 pessoas fictícias para testar do cadastro ao calendário. Use **Testar equipe insuficiente** para ver uma falta de cobertura comprovada para o catálogo de turnos.
 
-[Abrir o simulador online](https://murilomarchesan-png.github.io/escala-certa/). O cálculo e o rascunho ficam no navegador.
+A versão para GitHub Pages está preparada. Quando publicada, o cálculo e o rascunho ficam no navegador.
 
 ## Rodar
 
@@ -34,5 +34,6 @@ node --check apps/web/app.js
 O simulador oferece uma unidade, demanda repetida por dia e turnos com uma função por alocação. A busca tem 18 tentativas, semente 141, e ordena os resultados por cobertura mínima e desejada. Preferência de folga e distribuição de domingos influenciam a busca. O limite móvel de dias é conservador e usa dias civis com trabalho. Ele não equivale à apuração de repousos remunerados.
 
 O lançamento do PRD ainda depende de CP-SAT, cobertura distinta por data, persistência das versões, fronteiras entre ciclos, autenticação e publicação, isolamento de unidades, links individuais, financeiro e matriz jurídica revisada. A licença de distribuição permanece em decisão. [Arquitetura e riscos](docs/architecture/DECISOES.md) · [Revisão jurídica pendente](docs/legal/LEGAL_REVIEW_REQUIRED.md)
+
 
 
