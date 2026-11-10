@@ -2,7 +2,9 @@
 const $ = id => document.getElementById(id);
 const steps = ["Restaurante", "Pessoas", "Cobertura", "Preferências", "Resultado"];
 const roles = ["Cozinha", "Atendimento", "Caixa", "Limpeza"];
-const state = { step: 0, config: null, solution: null, scenario: 0, busy: false, team: "", week: 0 };
+const state = { step: 0, config: null, solution: null, scenario: 0, busy: false, team: "", week: 0, example: false, draft: null };
+const draftKey = "escala-certa-workspace-v1";
+const weekdays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const input = (label, attrs) => `<label>${label}<input ${attrs}></label>`;
 const option = (value, text, current) => `<option value="${safe(value)}" ${String(current) === String(value) ? "selected" : ""}>${safe(text)}</option>`;
@@ -18,7 +20,13 @@ const dayLabel = (c, day, weekday = false) => {
 const time = quarter => `${String(Math.floor(quarter / 4)).padStart(2,"0")}:${String(quarter % 4 * 15).padStart(2,"0")}`;
 
 function save() {
-  try { localStorage.setItem("escala-certa-demo", JSON.stringify(state.config)); } catch {}
+  if (!state.config || state.example) return;
+  state.draft = {config: state.config, solution: state.solution, scenario: state.scenario, step: state.step};
+  try {
+    localStorage.setItem(draftKey, JSON.stringify(state.draft));
+  } catch {
+    $("status").textContent = "O navegador não conseguiu guardar o rascunho. Exporte o resultado antes de fechar.";
+  }
 }
 function changeConfig() {
   state.solution = null;
@@ -47,27 +55,42 @@ async function run(task, waiting) {
     render();
   }
 }
-function load(stress) {
+function start() {
+  const today = new Date();
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + (8 - today.getDay()) % 7);
+  const date = [monday.getFullYear(), monday.getMonth()+1, monday.getDate()].map(n=>String(n).padStart(2,"0")).join("-");
+  const draft = state.draft;
+  Object.assign(state, {example:false, week:0, team:"", scenario:draft?.scenario ?? 0, solution:draft?.solution ?? null,
+    config:draft?.config ?? {unit:"", start:date, days:7, phase:44, people:[], shifts:[
+      {name:"Turno 1",start:"08:00",end:"12:00",pause_start:"",pause_end:""}
+    ], demand:[]}});
+  go(draft?.step ?? 0);
+}
+function loadExample() {
   return run(async () => {
     state.config = await (await request("/v1/demo")).json();
-    if (stress) state.config.demand.find(d => d.role === "Cozinha").minimum =
-      state.config.demand.find(d => d.role === "Cozinha").target = 8;
-    state.step = stress ? 4 : 0;
+    state.example = true;
+    state.step = 0;
     state.week = 0;
     state.team = "";
     changeConfig();
-    if (stress) await calculate();
-  }, "Carregando restaurante fictício…");
+  }, "Abrindo exemplo…");
 }
 async function calculate() {
+  if (!state.config.unit.trim()) throw new Error("Preencha o nome da unidade na etapa Restaurante.");
+  if (!state.config.people.length) throw new Error("Cadastre pelo menos uma pessoa na etapa Pessoas.");
+  if (!state.config.demand.some(r=>r.minimum>0 && (r.weekdays === undefined || r.weekdays.length))) {
+    throw new Error("Defina pelo menos uma faixa com cobertura mínima na etapa Cobertura.");
+  }
   state.solution = await (await request("/v1/solve", {config:state.config})).json();
   state.scenario = 0;
   state.week = 0;
+  save();
 }
 function restaurant(c) {
-  return `<p class="muted">A simulação usa horários civis de São Paulo. Cada faixa de demanda se repete diariamente no ciclo.</p>
+  return `<p class="muted">Informe a unidade, o período e os turnos. Os horários seguem São Paulo.</p>
   <div class="fields" data-group="root">
-  ${field("Nome fictício da unidade","unit",c.unit)}
+  ${field("Nome da unidade","unit",c.unit)}
   ${field("Início do ciclo","start",c.start,"date")}
   ${select("Duração",control("days"),[7,14,21,28].map(n => option(n,n+" dias",c.days)))}</div>
   <h3>Turnos disponíveis</h3><p class="muted">Use quartos de hora. O fim anterior ao início indica virada de dia.</p>
@@ -81,10 +104,10 @@ function restaurant(c) {
   <button data-action="add-shift">Adicionar turno</button>`;
 }
 function people(c) {
-  return `<p class="muted">Use nomes fictícios. Campo de equipe em branco permite escala individual. Dias indisponíveis incluem férias e afastamentos.</p>
+  return `<p class="muted">Use nome curto ou identificação interna. Equipe é opcional. Informe os dias indisponíveis sem registrar o motivo.</p>
   ${c.people.map((p,i) => `<details data-group="people" data-index="${i}">
     <summary>${safe(p.name)} · ${safe(p.skills.join(", "))}${p.team ? " · Equipe "+safe(p.team) : ""}</summary>
-    <div class="fields">${field("Nome fictício","name",p.name)}
+    <div class="fields">${field("Nome curto ou identificador","name",p.name)}
     ${field("Equipe","team",p.team)}
     ${field("Limite semanal contratual","hours",p.hours,"number",'min="1" max="44"')}
     ${select("Regime",control("regime"),[option("integral","CLT integral",p.regime),option("especial","Regime especial — em revisão",p.regime)])}
@@ -102,6 +125,8 @@ function coverage(c) {
     ${select("Função",control("role"),roles.map(name => option(name,name,r.role)))}
     ${field("Mínimo","minimum",r.minimum,"number",'min="0" max="100"')}
     ${field("Desejado","target",r.target,"number",'min="0" max="100"')}
+    </div><div class="checks" role="group" aria-label="Dias de cobertura">
+    ${weekdays.map((day,d)=>`<label><input type="checkbox" data-field="weekdays" value="${d}" ${(r.weekdays ?? [0,1,2,3,4,5,6]).includes(d)?"checked":""}>${day}</label>`).join("")}
     </div><button data-action="remove-demand" data-index="${i}">Remover faixa</button></div>`).join("")}
   <button data-action="add-demand">Adicionar faixa</button>`;
 }
@@ -168,18 +193,21 @@ function result(c) {
 function render() {
   $("steps").innerHTML = steps.map((s,i)=>`<button data-step="${i}" ${state.step===i?'aria-current="step"':""}>${i+1}. ${s}</button>`).join("");
   const c = state.config;
+  $("start").textContent = state.example && state.draft ? "Voltar à minha escala" : !c && state.draft ? "Retomar minha escala" : "Montar minha escala";
   $("panel").innerHTML = `<h2 id="panel-title" tabindex="-1">${steps[state.step]}</h2>` +
-    (c ? [restaurant,people,coverage,preferences,result][state.step](c) : "<p>Carregue o restaurante fictício para começar.</p>");
+    (state.example ? '<p class="muted">Exemplo fictício. Seu rascunho fica separado.</p>' : "") +
+    (c ? [restaurant,people,coverage,preferences,result][state.step](c) : "<p>Comece pelo cadastro da sua unidade.</p>");
   $("navigation").hidden = !c;
   $("back").disabled = state.busy || state.step===0;
   $("next").disabled = state.busy || state.step===4;
   $("next").textContent = state.step===3 ? "Gerar escala" : "Continuar";
-  for (const control of document.querySelectorAll("#demo,#stress,#steps button,#panel button,#panel input,#panel select")) {
+  for (const control of document.querySelectorAll("#demo,#start,#steps button,#panel button,#panel input,#panel select")) {
     control.disabled = state.busy || (control.closest("#steps") && !c);
   }
 }
 function go(step) {
   state.step = step;
+  save();
   render();
   $("panel-title").focus();
 }
@@ -188,6 +216,7 @@ function onChange(event) {
   const id = target.id;
   if (["scenario","week","team"].includes(id)) {
     state[id] = id==="team" ? target.value : Number(target.value);
+    save();
     render();
     $(id).focus();
     return;
@@ -200,6 +229,7 @@ function onChange(event) {
   if (["phase","days","shift","hours","minimum","target"].includes(key)) value = Number(value);
   if (key==="fixed") value = value==="" ? null : Number(value);
   if (key==="skills") value = [...target.closest(".checks").querySelectorAll("input:checked")].map(c=>c.value);
+  if (key==="weekdays") value = [...target.closest(".checks").querySelectorAll("input:checked")].map(c=>Number(c.value));
   if (key==="blocked") {
     const days = value.split(",").map(s=>s.trim()).filter(Boolean).map(Number);
     if (days.some(d=>!Number.isInteger(d)||d<1||d>state.config.days)) {
@@ -218,6 +248,7 @@ function onChange(event) {
 async function edit(assignments) {
   const response = await request("/v1/validate",{config:state.config,assignments});
   state.solution.scenarios[state.scenario] = await response.json();
+  save();
 }
 function onAction(event) {
   const button = event.target.closest("button[data-action]");
@@ -248,8 +279,8 @@ function onAction(event) {
     c.demand = c.demand.filter(r=>r.shift!==index).map(r=>({...r,shift:r.shift>index?r.shift-1:r.shift}));
     c.people.forEach(p=>{if(p.fixed===index)p.fixed=null;else if(p.fixed>index)p.fixed--;});
   }
-  if (action==="add-person") c.people.push({name:"Pessoa Demo",skills:[roles[0]],team:"",blocked:[],fixed:null,rest:"",regime:"integral",hours:40});
-  if (action==="remove-person" && c.people.length>1) c.people.splice(index,1);
+  if (action==="add-person") c.people.push({name:"",skills:[roles[0]],team:"",blocked:[],fixed:null,rest:"",regime:"integral",hours:40});
+  if (action==="remove-person") c.people.splice(index,1);
   if (action==="add-demand") c.demand.push({shift:0,role:roles[0],minimum:1,target:1});
   if (action==="remove-demand") c.demand.splice(index,1);
   changeConfig();
@@ -260,8 +291,8 @@ function onAction(event) {
     details.querySelector("input").focus();
   }
 }
-$("demo").onclick = () => load(false);
-$("stress").onclick = () => load(true);
+$("start").onclick = () => start();
+$("demo").onclick = () => loadExample();
 $("back").onclick = () => go(state.step-1);
 $("next").onclick = () => {
   if (state.step<3) return go(state.step+1);
@@ -273,7 +304,5 @@ $("steps").onclick = event => {
 };
 $("panel").addEventListener("change",onChange);
 $("panel").addEventListener("click",onAction);
-try { state.config = JSON.parse(localStorage.getItem("escala-certa-demo")); } catch {}
+try { state.draft = JSON.parse(localStorage.getItem(draftKey)); } catch {}
 render();
-
-

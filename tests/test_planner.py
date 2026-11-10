@@ -27,6 +27,14 @@ class PlannerTests(unittest.TestCase):
         self.assertGreater(result["structural"], 0)
         self.assertGreaterEqual(result["scenarios"][0]["deficit"], result["structural"])
 
+    def test_demand_applies_to_selected_weekdays(self):
+        config = demo()
+        config["start"] = "2026-11-18"
+        config["demand"] = [dict(shift=0, role="Cozinha", minimum=1, target=1, weekdays=[0, 5])]
+        report = Model(config).solve()["scenarios"][0]
+        self.assertEqual({slot // 96 for slot, *_ in report["coverage"]}, {3, 5})
+        self.assertEqual(report["deficit"], 0)
+
     def test_pause_and_overnight(self):
         start, end, work = shift_slots(dict(start="21:00", end="02:00", pause_start="23:45", pause_end="00:00"))
         self.assertEqual((start, end, len(work)), (84, 104, 19))

@@ -1,8 +1,8 @@
 # Escala Certa
 
-Simulador local de escalas para restaurantes de São Paulo. Carregue o Bistrô Alameda com 15 pessoas fictícias para testar do cadastro ao calendário. Use **Testar equipe insuficiente** para ver uma falta de cobertura comprovada para o catálogo de turnos.
+Planejador de escalas para restaurantes de São Paulo. Abra **Montar minha escala** para cadastrar unidade, equipe e demanda. O exemplo do Bistrô Alameda fica separado.
 
-A versão para GitHub Pages está preparada. Quando publicada, o cálculo e o rascunho ficam no navegador.
+[Abrir o Escala Certa online](https://murilomarchesan-png.github.io/escala-certa/). O cálculo e o rascunho ficam no navegador.
 
 ## Rodar
 
@@ -20,7 +20,7 @@ Abra [http://127.0.0.1:8765](http://127.0.0.1:8765). Se preferir contêiner e ti
 3. Gere a escala. Alterne entre as opções e confira a cobertura e os conflitos. Remova ou adicione uma alocação para recalcular.
 4. Baixe o Excel completo. Para PDF, selecione semana e equipe, clique em **Imprimir / Salvar PDF** e escolha **Salvar como PDF** no navegador.
 
-A configuração fica no armazenamento local do navegador. A edição da escala fica em memória. Use dados fictícios. A demo não tem autenticação e se destina a loopback.
+O rascunho e a escala editada ficam neste navegador. Exporte antes de limpar seus dados locais. Use identificadores internos e revise a escala antes de aplicá-la.
 
 ## Testes
 
@@ -31,9 +31,6 @@ node --check apps/web/app.js
 
 ## Escopo e evolução
 
-O simulador oferece uma unidade, demanda repetida por dia e turnos com uma função por alocação. A busca tem 18 tentativas, semente 141, e ordena os resultados por cobertura mínima e desejada. Preferência de folga e distribuição de domingos influenciam a busca. O limite móvel de dias é conservador e usa dias civis com trabalho. Ele não equivale à apuração de repousos remunerados.
+O simulador oferece uma unidade, demanda configurável por dia da semana e turnos com uma função por alocação. A busca tem 18 tentativas, semente 141, e ordena os resultados por cobertura mínima e desejada. Preferência de folga e distribuição de domingos influenciam a busca. O limite móvel de dias é conservador e usa dias civis com trabalho. Ele não equivale à apuração de repousos remunerados.
 
 O lançamento do PRD ainda depende de CP-SAT, cobertura distinta por data, persistência das versões, fronteiras entre ciclos, autenticação e publicação, isolamento de unidades, links individuais, financeiro e matriz jurídica revisada. A licença de distribuição permanece em decisão. [Arquitetura e riscos](docs/architecture/DECISOES.md) · [Revisão jurídica pendente](docs/legal/LEGAL_REVIEW_REQUIRED.md)
-
-
-

@@ -29,6 +29,7 @@ jobs:
           mkdir -p dist/runtime
           cp apps/web/* dist/
           cp apps/api/{planner,export,browser_api}.py dist/
+          PYTHONPATH=apps/api python -c 'import json; from planner import demo; print(json.dumps(demo()))' > dist/demo.json
           sed -i 's|href="/style.css"|href="./style.css"|; s|<script src="/app.js" defer></script>|<script src="./pages.js" defer></script><script src="./app.js" defer></script>|; s|DEMONSTRAÇÃO LOCAL|DEMONSTRAÇÃO ONLINE|' dist/index.html
           for file in pyodide.mjs pyodide.asm.mjs pyodide.asm.wasm python_stdlib.zip pyodide-lock.json; do
             curl --fail --silent --show-error --retry 3 "https://cdn.jsdelivr.net/pyodide/v314.0.1/full/$file" -o "dist/runtime/$file"

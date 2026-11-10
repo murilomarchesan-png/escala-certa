@@ -84,7 +84,12 @@ class Model:
             if role not in ROLES or not 0 <= shift < len(self.shifts) or not 0 <= minimum <= target <= 100:
                 raise ValueError("Revise turno, função e quantidades da demanda.")
             start, end, _ = self.shifts[shift]
+            weekdays = row.get("weekdays", list(range(7)))
+            if not isinstance(weekdays, list) or any(type(d) is not int or not 0 <= d < 7 for d in weekdays):
+                raise ValueError("Confira os dias da semana da cobertura.")
             for day in range(self.days):
+                if (self.start.weekday() + day) % 7 not in weekdays:
+                    continue
                 for t in range(day * 96 + start, day * 96 + end):
                     previous = self.requirements.get((t, role), (0, 0))
                     self.requirements[t, role] = max(previous[0], minimum), max(previous[1], target)
