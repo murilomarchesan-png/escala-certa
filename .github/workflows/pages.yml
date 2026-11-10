@@ -1,0 +1,39 @@
+name: Publicar demonstração
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -v
+      - uses: actions/configure-pages@v5
+      - name: Preparar site estático
+        run: |
+          mkdir -p dist/runtime
+          cp apps/web/* dist/
+          cp apps/api/{planner,export,browser_api}.py dist/
+          sed -i 's|href="/style.css"|href="./style.css"|; s|<script src="/app.js" defer></script>|<script src="./pages.js" defer></script><script src="./app.js" defer></script>|; s|DEMONSTRAÇÃO LOCAL|DEMONSTRAÇÃO ONLINE|' dist/index.html
+          for file in pyodide.mjs pyodide.asm.mjs pyodide.asm.wasm python_stdlib.zip pyodide-lock.json; do
+            curl --fail --silent --show-error --retry 3 "https://cdn.jsdelivr.net/pyodide/v314.0.1/full/$file" -o "dist/runtime/$file"
+          done
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
