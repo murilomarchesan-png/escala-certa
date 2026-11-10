@@ -119,7 +119,7 @@ function people(c) {
   </details>`).join("")}<button data-action="add-person">Adicionar pessoa</button>`;
 }
 function coverage(c) {
-  return `<p class="muted">O mínimo define a falta operacional. O desejado serve para comparar alternativas. Faixas sobrepostas da mesma função usam a maior exigência.</p>
+  return `<p class="muted">Adicione uma faixa por função e turno e marque os dias em que ela vale. Exemplo: almoço, cozinha, mínimo 1 e desejado 2. Com uma pessoa escalada, o mínimo está atendido e falta um reforço. Faixas sobrepostas da mesma função usam a maior exigência.</p>
   ${c.demand.map((r,i) => `<div class="record" data-group="demand" data-index="${i}"><div class="fields">
     ${select("Faixa do turno",control("shift"),shiftOptions(c,r.shift))}
     ${select("Função",control("role"),roles.map(name => option(name,name,r.role)))}
@@ -167,6 +167,7 @@ function result(c) {
       <div class="metric"><strong>${report.desired/4} h</strong>Falta para o desejado</div>
       <div class="metric"><strong>${report.findings.length}</strong>Conflitos na simulação</div>
     </div>
+    <p class="muted">As horas em falta somam as lacunas por função e horário. Por exemplo, duas pessoas faltando por uma hora representam duas horas de cobertura.</p>
     ${report.deficit ? `<p class="alert">${solution.structural ? "O catálogo atual comprova pelo menos "+solution.structural/4+" h de falta por ausência de pessoas elegíveis nos intervalos." : "A busca encontrou lacunas. Ainda pode haver uma combinação melhor."} Consulte os intervalos abaixo e ajuste os turnos ou disponibilize reforço habilitado.</p>` : ""}
     ${report.unsupported.length ? `<p>Fora da geração por regime em revisão · ${safe(report.unsupported.join(", "))}</p>` : ""}
     <details class="no-print"><summary>Comparar alternativas</summary><div class="scroller" tabindex="0" aria-label="Comparação de alternativas">
@@ -293,6 +294,9 @@ function onAction(event) {
 }
 $("start").onclick = () => start();
 $("demo").onclick = () => loadExample();
+document.querySelector(".hero-guide").addEventListener("click", () => {
+  $("como-usar").open = true;
+});
 $("back").onclick = () => go(state.step-1);
 $("next").onclick = () => {
   if (state.step<3) return go(state.step+1);
