@@ -70,6 +70,22 @@ class PlannerTests(unittest.TestCase):
             for name in archive.namelist():
                 ElementTree.fromstring(archive.read(name))
             self.assertIn("Revisão jurídica pendente", archive.read("xl/worksheets/sheet1.xml").decode())
+            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
+            names = [sheet.get("name") for sheet in workbook.findall(".//{*}sheet")]
+            self.assertEqual(names, ["Gerencial", "Cobertura", *[p["name"] for p in model.people]])
+            individual = archive.read("xl/worksheets/sheet3.xml").decode()
+            self.assertIn(model.people[0]["name"], individual)
+            self.assertNotIn(model.people[1]["name"], individual)
+
+    def test_spreadsheet_sanitizes_duplicate_and_reserved_tab_names(self):
+        config = demo()
+        for person, name in zip(config["people"], ["Gerencial", "gerencial", "A/B", "A?B"]):
+            person["name"] = name
+        model = Model(config)
+        with ZipFile(BytesIO(xlsx(model, model.report([])))) as archive:
+            workbook = ElementTree.fromstring(archive.read("xl/workbook.xml"))
+            names = [sheet.get("name") for sheet in workbook.findall(".//{*}sheet")]
+            self.assertEqual(names[:6], ["Gerencial", "Cobertura", "Gerencial (2)", "gerencial (3)", "A B", "A B (2)"])
 
 if __name__ == "__main__":
     unittest.main()
