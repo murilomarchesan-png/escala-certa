@@ -303,6 +303,10 @@ $("steps").onclick = event => {
   if (event.target.dataset.step !== undefined) go(Number(event.target.dataset.step));
 };
 $("panel").addEventListener("change",onChange);
+$("panel").addEventListener("input", event => {
+  const field = event.target;
+  if (field.matches('input[data-field]:not([type="checkbox"]):not([data-field="blocked"])')) onChange(event);
+});
 $("panel").addEventListener("click",onAction);
 try { state.draft = JSON.parse(localStorage.getItem(draftKey)); } catch {}
 render();
