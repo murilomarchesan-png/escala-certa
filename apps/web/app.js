@@ -5,6 +5,46 @@ const roles = ["Cozinha", "Atendimento", "Caixa", "Limpeza"];
 const state = { step: 0, config: null, solution: null, scenario: 0, busy: false, team: "", week: 0, example: false, draft: null };
 const draftKey = "escala-certa-workspace-v1";
 const weekdays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const openHelp = new Set();
+const stepHelp = [
+  ["Como cadastrar a unidade e os turnos", [
+    ["Escolha o período", "Preencha o nome da unidade e selecione o primeiro dia da escala. A duração vale a partir dessa data. Comece com 7 dias se estiver montando uma semana."],
+    ["Separe abertura e fechamento", "Crie um turno para cada horário usado na operação. Por exemplo, Abertura das 08h às 12h e Fechamento das 18h às 22h. Escolha minutos 00, 15, 30 ou 45."],
+    ["Informe pausas e viradas de dia", "Se houver pausa, preencha início e fim dentro do turno. A pausa fica fora da cobertura. Para um turno das 21h às 01h, informe o fim como 01h. O sistema entende que é no dia seguinte."],
+    ["Depois do cadastro", "Nesta etapa você define os horários possíveis. Em Pessoas, escolha quem pode trabalhar neles. Em Cobertura, informe quantas pessoas cada horário precisa."]
+  ]],
+  ["Como cadastrar pessoas, equipes e indisponibilidades", [
+    ["Identifique e habilite a pessoa", "Clique em Adicionar pessoa, informe um nome curto ou código interno e marque todas as funções que ela pode exercer. Uma pessoa com várias funções cobre apenas uma por vez."],
+    ["Escolha equipe e turno", "Equipe é opcional. Use um nome como Abertura ou Grupo A para filtrar o calendário. Em Turno fixo, selecione o único turno possível para aquela pessoa. Deixe Flexível se ela puder trabalhar em qualquer turno cadastrado."],
+    ["Bloqueie dias em que a pessoa não pode trabalhar", "Em Dias indisponíveis, use a posição no ciclo, separada por vírgulas. Se o ciclo começa na segunda, 3,7 bloqueia quarta e domingo da primeira semana. Registre apenas os dias."],
+    ["Preencha jornada e regime", "Informe o limite semanal do contrato. Regimes especiais em revisão ficam fora da geração automática."]
+  ]],
+  ["Como informar a cobertura por turno, função e dia", [
+    ["Crie uma faixa por função", "Clique em Adicionar faixa e escolha o turno e a função. Se o almoço precisa de cozinha e atendimento, crie uma faixa para cada função."],
+    ["Separe o necessário do reforço", "Por exemplo, para o almoço de segunda a sexta, use mínimo 1 e desejado 2 em Cozinha. Uma pessoa atende o mínimo. Duas atendem o desejado."],
+    ["Diferencie fim de semana e dias fechados", "Para pedir mais gente aos sábados, crie outra faixa e marque apenas Sáb. Em dias fechados, deixe o dia desmarcado nas faixas correspondentes."],
+    ["Confira sobreposições", "Se duas faixas pedirem a mesma função no mesmo horário, vale a maior exigência. Se precisar de três pessoas ao mesmo tempo, informe três em uma faixa."]
+  ]],
+  ["Como ajustar jornada e preferências de folga", [
+    ["Escolha a hipótese semanal", "Selecione 44h, 42h ou 40h conforme o cenário que quer planejar. O limite informado no cadastro da pessoa também é aplicado. A hipótese vale para o ciclo inteiro e exige revisão para uso real."],
+    ["Marque a preferência por pessoa", "Seguidas favorece dias sem turno juntos. Separadas favorece a distribuição desses dias. Indiferente deixa a escolha livre para o cálculo."],
+    ["Separe preferência de restrição", "Se a pessoa realmente não pode trabalhar em determinado dia, bloqueie esse dia na etapa Pessoas. O pedido de folga nesta etapa orienta a distribuição."]
+  ]],
+  ["Como ler, corrigir e exportar a escala", [
+    ["Comece pelo mínimo", "Clique em Gerar escala. Compare as opções e confira as horas em falta para o mínimo. Na tabela Cobertura por 15 minutos, procure o dia, o horário e a função com lacuna."],
+    ["Confira conflitos e faça ajustes", "Para trocar uma pessoa, remova o turno no calendário e abra Adicionar alocação manual para inserir a substituição. A cobertura e os conflitos são recalculados a cada mudança."],
+    ["Leia o calendário por semana", "Use os seletores de semana e equipe para localizar as alocações. Um dia sem turno é um dia sem alocação no resultado. Confira o descanso aplicável antes de usar a escala."],
+    ["Escolha o formato de saída", "Baixar Excel gera uma aba Gerencial, uma de Cobertura e uma por pessoa. Imprimir / Salvar PDF usa a semana e a equipe visíveis. O arquivo Excel completo contém os dados da equipe e é para gestão."]
+  ]]
+];
+
+function helpForStep(index) {
+  const [title, items] = stepHelp[index];
+  return `<details class="step-help no-print" data-help-step="${index}" ${openHelp.has(index) ? "open" : ""}>
+    <summary>${title}</summary>
+    <ul>${items.map(([label, body]) => `<li><strong>${label}.</strong> ${body}</li>`).join("")}</ul>
+  </details>`;
+}
 const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const input = (label, attrs) => `<label>${label}<input ${attrs}></label>`;
 const option = (value, text, current) => `<option value="${safe(value)}" ${String(current) === String(value) ? "selected" : ""}>${safe(text)}</option>`;
@@ -197,7 +237,8 @@ function render() {
   $("start").textContent = state.example && state.draft ? "Voltar à minha escala" : !c && state.draft ? "Retomar minha escala" : "Montar minha escala";
   $("panel").innerHTML = `<h2 id="panel-title" tabindex="-1">${steps[state.step]}</h2>` +
     (state.example ? '<p class="muted">Exemplo fictício. Seu rascunho fica separado.</p>' : "") +
-    (c ? [restaurant,people,coverage,preferences,result][state.step](c) : "<p>Comece pelo cadastro da sua unidade.</p>");
+    (c ? helpForStep(state.step) + [restaurant,people,coverage,preferences,result][state.step](c)
+       : "<p>Comece pelo cadastro da sua unidade.</p>");
   $("navigation").hidden = !c;
   $("back").disabled = state.busy || state.step===0;
   $("next").disabled = state.busy || state.step===4;
@@ -312,5 +353,11 @@ $("panel").addEventListener("input", event => {
   if (field.matches('input[data-field]:not([type="checkbox"]):not([data-field="blocked"])')) onChange(event);
 });
 $("panel").addEventListener("click",onAction);
+$("panel").addEventListener("toggle", event => {
+  const step = event.target.dataset.helpStep;
+  if (step === undefined) return;
+  if (event.target.open) openHelp.add(Number(step));
+  else openHelp.delete(Number(step));
+}, true);
 try { state.draft = JSON.parse(localStorage.getItem(draftKey)); } catch {}
 render();
